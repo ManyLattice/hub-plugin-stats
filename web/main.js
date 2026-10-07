@@ -37,6 +37,7 @@ export default function register(hub) {
     box.replaceChildren(el("p", null, "Данных пока нет: процесс плагина ещё не собирал статистику."));
   };
 
+  hub.addStyle("web/stats.css");
   hub.addView({
     id: "stats", title: "Статистика", subtitle: "клоны плагинов", icon: "board",
     render(root, snap) {
