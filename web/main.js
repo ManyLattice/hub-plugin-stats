@@ -10,7 +10,7 @@ export default function register(hub) {
 
   const paint = (d) => {
     box.replaceChildren(el("p", "jev-state", NOTE));
-    if (!d.rows.length) { box.append(el("p", null, "Истории пока нет: первый сбор — при запуске процесса.")); return; }
+    if (!d.rows.length) { box.append(el("p", null, "Истории пока нет: первый сбор - при запуске процесса.")); return; }
     const t = el("table", "stats-table");
     const head = el("tr");
     for (const h of ["Плагин", "История с", "7 дней", "30 дней", "Всего"]) head.append(el("th", null, h));
