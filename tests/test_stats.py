@@ -2,6 +2,7 @@ import os
 import tempfile
 import unittest
 
+import main
 import stats
 
 C = lambda day, n, u: {"timestamp": f"{day}T00:00:00Z", "count": n, "uniques": u}
@@ -44,6 +45,30 @@ class Stats(unittest.TestCase):
             stdout = json.dumps([{"name": "hub-plugin-x", "isPrivate": False}, {"name": "hub-plugin-p", "isPrivate": True},
                                  {"name": "other", "isPrivate": False}])
         self.assertEqual(stats.discover("o", run=lambda *a, **k: R), ["hub-plugin-x"])
+
+
+class Owner(unittest.TestCase):
+    def setUp(self):
+        self.old = main.CONF
+        main.CONF = os.path.join(tempfile.mkdtemp(), "settings.json")
+
+    def tearDown(self):
+        main.CONF = self.old
+
+    def run_gh(self, out, code=0):
+        return lambda *a, **k: type("R", (), {"returncode": code, "stdout": out})()
+
+    def test_default_is_gh_account(self):
+        self.assertEqual(main.owner(self.run_gh("someone\n")), "someone")
+
+    def test_setting_wins(self):
+        with open(main.CONF, "w") as f:
+            f.write('{"owner": "other"}')
+        self.assertEqual(main.owner(self.run_gh("someone")), "other")
+
+    def test_no_gh_login_raises(self):
+        with self.assertRaises(RuntimeError):
+            main.owner(self.run_gh("", 1))
 
 
 if __name__ == "__main__":

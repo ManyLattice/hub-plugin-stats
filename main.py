@@ -4,6 +4,7 @@ CLI: `python3 main.py report` — сводка из накопленной ис�
 import datetime
 import json
 import os
+import subprocess
 import sys
 import time
 
@@ -13,17 +14,23 @@ STATE = os.environ.get("HUB_STATE_DIR", os.path.expanduser("~/.hub-core"))
 NAME = os.environ.get("HUB_EXTENSION", "stats")
 CHANNEL = NAME.split(":")[-1]
 FILE = os.path.join(STATE, "stats", "clones.json")
-CONF = os.path.join(STATE, "stats", "settings.json")   # {"owner": "ManyLattice"}
+CONF = os.path.join(STATE, "stats", "settings.json")   # {"owner": "<аккаунт GitHub>"}
 EVERY = 24 * 3600
 RETRY = 3600
 
 
-def owner():
+def owner(run=subprocess.run):
     try:
         with open(CONF) as f:
-            return json.load(f).get("owner") or "ManyLattice"
+            name = json.load(f).get("owner")
     except (OSError, ValueError):
-        return "ManyLattice"
+        name = None
+    if name:
+        return name
+    r = run(["gh", "api", "user", "--jq", ".login"], capture_output=True, text=True, timeout=30)
+    if r.returncode or not r.stdout.strip():
+        raise RuntimeError("не удалось определить аккаунт GitHub: выполните `gh auth login` или задайте owner в " + CONF)
+    return r.stdout.strip()
 
 
 def today():
