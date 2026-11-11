@@ -71,5 +71,62 @@ class Owner(unittest.TestCase):
             main.owner(self.run_gh("", 1))
 
 
+class Move(unittest.TestCase):
+    def setUp(self):
+        self.state = tempfile.mkdtemp()
+        self.old = os.path.join(self.state, "stats")
+        self.own = os.path.join(self.state, "stats-plugin")
+        os.makedirs(self.old)
+
+    def write(self, folder, name, text):
+        os.makedirs(folder, exist_ok=True)
+        with open(os.path.join(folder, name), "w") as f:
+            f.write(text)
+
+    def read(self, folder, name):
+        with open(os.path.join(folder, name)) as f:
+            return f.read()
+
+    def test_own_files_move_and_core_files_stay(self):
+        self.write(self.old, "clones.json", '{"r": {}}')
+        self.write(self.old, "settings.json", '{"owner": "o"}')
+        for n in ("state.json", "sent.jsonl", "ident.json"):
+            self.write(self.old, n, n)
+        self.assertEqual(sorted(main.move(self.state)), ["clones.json", "settings.json"])
+        self.assertEqual(self.read(self.own, "clones.json"), '{"r": {}}')
+        self.assertEqual(self.read(self.own, "settings.json"), '{"owner": "o"}')
+        self.assertEqual(sorted(os.listdir(self.old)), ["ident.json", "sent.jsonl", "state.json"])
+        self.assertEqual(sorted(os.listdir(self.own)), ["clones.json", "settings.json"])
+
+    def test_only_history_moves_alone(self):
+        self.write(self.old, "clones.json", "{}")
+        self.assertEqual(main.move(self.state), ["clones.json"])
+        self.assertFalse(os.path.exists(os.path.join(self.old, "clones.json")))
+
+    def test_file_already_in_new_folder_is_not_overwritten(self):
+        self.write(self.own, "clones.json", "new")
+        self.write(self.old, "clones.json", "old")
+        self.write(self.old, "settings.json", "old")
+        self.assertEqual(main.move(self.state), ["settings.json"])
+        self.assertEqual(self.read(self.own, "clones.json"), "new")
+        self.assertEqual(os.listdir(self.old), ["clones.json"])
+
+    def test_second_start_moves_nothing(self):
+        self.write(self.old, "clones.json", "{}")
+        main.move(self.state)
+        self.assertEqual(main.move(self.state), [])
+        self.assertEqual(self.read(self.own, "clones.json"), "{}")
+
+    def test_nothing_to_move_creates_nothing(self):
+        self.write(self.old, "state.json", "{}")
+        self.assertEqual(main.move(self.state), [])
+        self.assertFalse(os.path.exists(self.own))
+        self.assertEqual(os.listdir(self.old), ["state.json"])
+
+    def test_paths_live_in_own_folder(self):
+        self.assertEqual(os.path.basename(os.path.dirname(main.FILE)), "stats-plugin")
+        self.assertEqual(os.path.dirname(main.FILE), os.path.dirname(main.CONF))
+
+
 if __name__ == "__main__":
     unittest.main()
